@@ -15,6 +15,12 @@ public class Debt {
     private List<Pair<Date, Double>> debtPercentage = new ArrayList<>();
     private List<Pair<Date, Integer>> debtRecurrence = new ArrayList<>();
 
+    enum MODIFICATIONS {
+        INCREASE_ADDITION,
+        INCREASE_PERCENTAGE,
+        INCREASE_RECURRENCE
+    };
+
     private Date convDate(Date d) {
         Date ret = new Date(d.getTime());
 
