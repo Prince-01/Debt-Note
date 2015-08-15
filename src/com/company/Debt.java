@@ -15,10 +15,23 @@ public class Debt {
     private List<Pair<Date, Double>> debtPercentage = new ArrayList<>();
     private List<Pair<Date, Integer>> debtRecurrence = new ArrayList<>();
 
-    class CalcInfo {
-        Date date;
-        double value;
-        MODIFICATIONS modification;
+    public void removeIncrease(CalcInfo c) {
+
+        for (int i = 0; i < increases.size(); i++)
+            if (c.date.compareTo(increases.get(i).getKey()) == 0) {
+                increases.remove(i);
+                break;
+            }
+
+    }
+    public void changePercentage(CalcInfo c, double newPercentage) {
+
+    }
+
+    public class CalcInfo {
+        public Date date;
+        public double value;
+        public MODIFICATIONS modification;
 
         public CalcInfo(Date d, double v, MODIFICATIONS mod) {
         date = d;
@@ -35,7 +48,7 @@ public class Debt {
         }
     }
 
-    enum MODIFICATIONS {
+    public enum MODIFICATIONS {
         INCREASE_ADDITION,
         INCREASE_PERCENTAGE,
         INCREASE_RECURRENCE
@@ -67,7 +80,7 @@ public class Debt {
 
             while (d.compareTo(limit) <= 0) {
                 while (incrCntg < increases.size() && d.compareTo(convDate(increases.get(incrCntg).getKey())) == 1)
-                    result.add(new CalcInfo(convDate(increases.get(incrCntg).getKey()), increases.get(incrCntg++).getValue(), MODIFICATIONS.INCREASE_ADDITION));
+                    result.add(new CalcInfo(increases.get(incrCntg).getKey(), increases.get(incrCntg++).getValue(), MODIFICATIONS.INCREASE_ADDITION));
                 if (percCntg < debtPercentage.size() - 1) {
                     if (d.compareTo(convDate(debtPercentage.get(percCntg).getKey())) >= 0 && d.compareTo(convDate(debtPercentage.get(percCntg + 1).getKey())) < 1)
                         result.add(new CalcInfo(d, debtPercentage.get(percCntg).getValue(), MODIFICATIONS.INCREASE_PERCENTAGE));
@@ -77,13 +90,13 @@ public class Debt {
                     result.add(new CalcInfo(d, debtPercentage.get(percCntg).getValue(), MODIFICATIONS.INCREASE_PERCENTAGE));
                 }
                 while (incrCntg < increases.size() && d.compareTo(convDate(increases.get(incrCntg).getKey())) == 0)
-                    result.add(new CalcInfo(convDate(increases.get(incrCntg).getKey()), increases.get(incrCntg++).getValue(), MODIFICATIONS.INCREASE_ADDITION));
+                    result.add(new CalcInfo(increases.get(incrCntg).getKey(), increases.get(incrCntg++).getValue(), MODIFICATIONS.INCREASE_ADDITION));
 
                 while (recuCntg < debtRecurrence.size() - 1)
                     if (!(d.compareTo(convDate(debtRecurrence.get(recuCntg).getKey())) >= 0 && d.compareTo(convDate(debtRecurrence.get(recuCntg + 1).getKey())) < 1))
-                        result.add(new CalcInfo(convDate(debtRecurrence.get(recuCntg).getKey()), debtRecurrence.get(recuCntg++).getValue(), MODIFICATIONS.INCREASE_ADDITION));
+                        result.add(new CalcInfo(debtRecurrence.get(recuCntg).getKey(), debtRecurrence.get(recuCntg++).getValue(), MODIFICATIONS.INCREASE_ADDITION));
 
-                d.setTime(d.getTime() + 1000 * 3600 * 24 * debtRecurrence.get(recuCntg).getValue());
+                d = new Date(d.getTime() + 1000 * 3600 * 24 * debtRecurrence.get(recuCntg).getValue());
             }
         } else {
             for(Pair<Date, Double> d : increases)

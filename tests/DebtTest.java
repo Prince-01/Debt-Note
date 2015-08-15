@@ -4,6 +4,7 @@ import org.junit.Before;
 import org.junit.Test;
 
 import java.util.Date;
+import java.util.List;
 
 import static org.junit.Assert.*;
 
@@ -63,5 +64,27 @@ public class DebtTest {
         Date nextFiveDays = new Date();
         nextFiveDays.setTime(new Date().getTime() + 1000 * 3600 * 24 * 10);
         assertEquals((money * 1.1 + 100) * 1.21, debt.calculateDebt(nextFiveDays), precision);
+
+        List<Debt.CalcInfo> out = debt.calculateInSteps(nextFiveDays);
+    }
+
+    @Test
+    public void RemoveAddition_ResultsWithUnchangedDebt() {
+        debt.increaseNow(100);
+        debt.setDebtPercentage(new Date(), 10);
+        debt.setRecurrence(new Date(), 5);
+
+        assertEquals(money * 1.1 + 100, debt.calculateDebt(new Date()), precision);
+        Date nextFiveDays = new Date();
+        nextFiveDays.setTime(new Date().getTime() + 1000 * 3600 * 24 * 10);
+        assertEquals((money * 1.1 + 100) * 1.21, debt.calculateDebt(nextFiveDays), precision);
+
+        List<Debt.CalcInfo> out = debt.calculateInSteps(nextFiveDays);
+
+        for(Debt.CalcInfo c : out)
+            if(c.modification == Debt.MODIFICATIONS.INCREASE_ADDITION)
+                debt.removeIncrease(c);
+
+        assertEquals(money * 1.1 * 1.21, debt.calculateDebt(nextFiveDays), precision);
     }
 }
