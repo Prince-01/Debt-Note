@@ -60,9 +60,63 @@ public class Debt {
         return new Date(d.getTime() - d.getTime() % (1000 * 3600 * 24));
     }
 
+    private boolean isTheSameDay(Date d1, Date d2) {
+        return d1.getTime() % (1000 * 3600 * 24) == d2.getTime() % (1000 * 3600 * 24);
+    }
+
+    private void removeRedundancy() {
+        for(int i = 0; i < debtPercentage.size() - 1; i++)
+            if(isTheSameDay(debtPercentage.get(i).getKey(), debtPercentage.get(i + 1).getKey()))
+                debtPercentage.remove(i--);
+        for(int i = 0; i < debtRecurrence.size() - 1; i++)
+            if(isTheSameDay(debtRecurrence.get(i).getKey(), debtRecurrence.get(i + 1).getKey()))
+                debtRecurrence.remove(i--);
+    }
 
     public void setInitialDebt(double initialDebt) {
         this.initialDebt = initialDebt;
+    }
+
+    private List<CalcInfo> getIncreasesFromInterval(int from, int to) {
+        List<CalcInfo> res = new ArrayList<>();
+
+        for(;from < to; from++)
+            res.add(new CalcInfo(increases.get(from).getKey(), increases.get(from).getValue(), MODIFICATIONS.INCREASE_ADDITION));
+
+        return res;
+    }
+
+    private int getUpperIndexOfIncreaseBefore(int from, Date to) {
+        while (from < increases.size() && to.compareTo(convDate(increases.get(from).getKey())) == 1)
+            from++;
+        return from;
+    }
+
+    private int getUpperIndexOfIncreaseAt(int from, Date to) {
+        while (from < increases.size() && to.compareTo(convDate(increases.get(from).getKey())) == 1)
+            from++;
+        return from;
+    }
+
+    private List<CalcInfo> getRecurrenceFromInterval(int from, int to) {
+        List<CalcInfo> res = new ArrayList<>();
+
+        for(;from < to; from++)
+            res.add(new CalcInfo(debtRecurrence.get(from).getKey(), debtRecurrence.get(from).getValue(), MODIFICATIONS.INCREASE_RECURRENCE));
+
+        return res;
+    }
+
+    private int getUpperIndexOfRecurrence(int from, Date to) {
+        while (from < debtRecurrence.size() - 1)
+            if (!(to.compareTo(convDate(debtRecurrence.get(from).getKey())) >= 0 &&
+                  to.compareTo(convDate(debtRecurrence.get(from + 1).getKey())) < 1))
+                from++;
+        return from;
+    }
+
+    private Date moveDateByNDats(Date d, int n) {
+        return new Date(d.getTime() + 1000 * 3600 * 24 * n);
     }
 
     public List<CalcInfo> calculateInSteps(Date limit) {
@@ -73,28 +127,42 @@ public class Debt {
             int percCntg = 0;
             int incrCntg = 0;
             int recuCntg = 0;
+            int from = 0;
 
             while (d.compareTo(limit) <= 0) {
-                while (incrCntg < increases.size() && d.compareTo(convDate(increases.get(incrCntg).getKey())) == 1)
-                    result.add(new CalcInfo(increases.get(incrCntg).getKey(), increases.get(incrCntg++).getValue(), MODIFICATIONS.INCREASE_ADDITION));
-                while (percCntg < debtPercentage.size() - 1 && !(d.compareTo(convDate(debtPercentage.get(percCntg).getKey())) >= 0 && d.compareTo(convDate(debtPercentage.get(percCntg + 1).getKey())) < 1))
-                    percCntg++;
+                from = incrCntg;
+                incrCntg = getUpperIndexOfIncreaseBefore(from, d);
+                result.addAll(getIncreasesFromInterval(from, incrCntg));
+
+                percCntg = giveCorrectPercentageIndex(d, percCntg);
                 result.add(new CalcInfo(d, debtPercentage.get(percCntg).getValue(), MODIFICATIONS.INCREASE_PERCENTAGE));
-                while (incrCntg < increases.size() && d.compareTo(convDate(increases.get(incrCntg).getKey())) == 0)
-                    result.add(new CalcInfo(increases.get(incrCntg).getKey(), increases.get(incrCntg++).getValue(), MODIFICATIONS.INCREASE_ADDITION));
 
-                while (recuCntg < debtRecurrence.size() - 1)
-                    if (!(d.compareTo(convDate(debtRecurrence.get(recuCntg).getKey())) >= 0 && d.compareTo(convDate(debtRecurrence.get(recuCntg + 1).getKey())) < 1))
-                        result.add(new CalcInfo(debtRecurrence.get(recuCntg).getKey(), debtRecurrence.get(recuCntg++).getValue(), MODIFICATIONS.INCREASE_RECURRENCE));
+                from = incrCntg;
+                incrCntg = getUpperIndexOfIncreaseAt(from, d);
+                result.addAll(getIncreasesFromInterval(from, incrCntg));
 
-                d = new Date(d.getTime() + 1000 * 3600 * 24 * debtRecurrence.get(recuCntg).getValue());
+                from = recuCntg;
+                recuCntg = getUpperIndexOfRecurrence(from, d);
+                result.addAll(getRecurrenceFromInterval(from, recuCntg));
+
+                d = moveDateByNDats(d, debtRecurrence.get(recuCntg).getValue());
             }
+
+            from = incrCntg;
+            incrCntg = Math.max(getUpperIndexOfIncreaseAt(incrCntg, limit), getUpperIndexOfIncreaseBefore(incrCntg, limit));
+            result.addAll(getIncreasesFromInterval(from, incrCntg));
         } else {
             for(Pair<Date, Double> d : increases)
                 result.add(new CalcInfo(d.getKey(), d.getValue(), MODIFICATIONS.INCREASE_ADDITION));
         }
 
         return result;
+    }
+
+    private int giveCorrectPercentageIndex(Date d, int percCntg) {
+        while (percCntg < debtPercentage.size() - 1 && !(d.compareTo(convDate(debtPercentage.get(percCntg).getKey())) >= 0 && d.compareTo(convDate(debtPercentage.get(percCntg + 1).getKey())) < 1))
+            percCntg++;
+        return percCntg;
     }
 
     public double calculateDebt(Date limit) {
@@ -107,7 +175,7 @@ public class Debt {
         return outf;
     }
 
-    public void increaseNow(Date date, double increase) {
+    public void increaseBy(Date date, double increase) {
         increases.add(new Pair<>(date, increase));
 
 
@@ -118,11 +186,13 @@ public class Debt {
         this.debtPercentage.add(new Pair<>(startingDate, debtPercentage));
 
         this.debtPercentage.sort((a, b) -> a.getKey().compareTo(b.getKey()));
+        removeRedundancy();
     }
 
     public void setRecurrence(Date date, int rec) {
         debtRecurrence.add(new Pair<>(date, rec));
 
         debtRecurrence.sort((a, b) -> a.getKey().compareTo(b.getKey()));
+        removeRedundancy();
     }
 }

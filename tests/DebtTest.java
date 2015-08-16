@@ -38,7 +38,7 @@ public class DebtTest {
     public void IncreasedDebt_IsWorthInitialValuePlusIncrease() {
         double increase = 500;
 
-        debt.increaseNow(new Date(), increase);
+        debt.increaseBy(new Date(), increase);
 
         assertEquals(money + increase, debt.calculateDebt(new Date()), precision);
     }
@@ -56,7 +56,7 @@ public class DebtTest {
 
     @Test
     public void TenPercent_ResultsWithTenPercentOfDebtHighWithIncrease() {
-        debt.increaseNow(new Date(), 100);
+        debt.increaseBy(new Date(), 100);
         debt.setDebtPercentage(new Date(), 10);
         debt.setRecurrence(new Date(), 5);
 
@@ -68,7 +68,7 @@ public class DebtTest {
 
     @Test
     public void RemoveAddition_ResultsWithUnchangedDebt() {
-        debt.increaseNow(new Date(), 100);
+        debt.increaseBy(new Date(), 100);
         debt.setDebtPercentage(new Date(), 10);
         debt.setRecurrence(new Date(), 5);
 
@@ -88,7 +88,7 @@ public class DebtTest {
 
     @Test
     public void ChangePercentage_ResultsWithChangedDebt() {
-        debt.increaseNow(new Date(), 100);
+        debt.increaseBy(new Date(), 100);
         debt.setDebtPercentage(new Date(), 10);
         debt.setRecurrence(new Date(), 5);
 
