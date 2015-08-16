@@ -25,7 +25,9 @@ public class Debt {
 
     }
     public void changePercentage(CalcInfo c, double newPercentage) {
+        Date dayBefore = new Date(c.date.getTime() - 1000 * 3600 * 24);
 
+        setDebtPercentage(dayBefore, newPercentage);
     }
 
     public class CalcInfo {
@@ -55,13 +57,7 @@ public class Debt {
     };
 
     private Date convDate(Date d) {
-        Date ret = new Date(d.getTime());
-
-        ret.setSeconds(0);
-        ret.setMinutes(0);
-        ret.setHours(0);
-
-        return ret;
+        return new Date(d.getTime() - d.getTime() % (1000 * 3600 * 24));
     }
 
 
@@ -81,20 +77,15 @@ public class Debt {
             while (d.compareTo(limit) <= 0) {
                 while (incrCntg < increases.size() && d.compareTo(convDate(increases.get(incrCntg).getKey())) == 1)
                     result.add(new CalcInfo(increases.get(incrCntg).getKey(), increases.get(incrCntg++).getValue(), MODIFICATIONS.INCREASE_ADDITION));
-                if (percCntg < debtPercentage.size() - 1) {
-                    if (d.compareTo(convDate(debtPercentage.get(percCntg).getKey())) >= 0 && d.compareTo(convDate(debtPercentage.get(percCntg + 1).getKey())) < 1)
-                        result.add(new CalcInfo(d, debtPercentage.get(percCntg).getValue(), MODIFICATIONS.INCREASE_PERCENTAGE));
-                    else
-                        result.add(new CalcInfo(d, debtPercentage.get(++percCntg).getValue(), MODIFICATIONS.INCREASE_PERCENTAGE));
-                } else {
-                    result.add(new CalcInfo(d, debtPercentage.get(percCntg).getValue(), MODIFICATIONS.INCREASE_PERCENTAGE));
-                }
+                while (percCntg < debtPercentage.size() - 1 && !(d.compareTo(convDate(debtPercentage.get(percCntg).getKey())) >= 0 && d.compareTo(convDate(debtPercentage.get(percCntg + 1).getKey())) < 1))
+                    percCntg++;
+                result.add(new CalcInfo(d, debtPercentage.get(percCntg).getValue(), MODIFICATIONS.INCREASE_PERCENTAGE));
                 while (incrCntg < increases.size() && d.compareTo(convDate(increases.get(incrCntg).getKey())) == 0)
                     result.add(new CalcInfo(increases.get(incrCntg).getKey(), increases.get(incrCntg++).getValue(), MODIFICATIONS.INCREASE_ADDITION));
 
                 while (recuCntg < debtRecurrence.size() - 1)
                     if (!(d.compareTo(convDate(debtRecurrence.get(recuCntg).getKey())) >= 0 && d.compareTo(convDate(debtRecurrence.get(recuCntg + 1).getKey())) < 1))
-                        result.add(new CalcInfo(debtRecurrence.get(recuCntg).getKey(), debtRecurrence.get(recuCntg++).getValue(), MODIFICATIONS.INCREASE_ADDITION));
+                        result.add(new CalcInfo(debtRecurrence.get(recuCntg).getKey(), debtRecurrence.get(recuCntg++).getValue(), MODIFICATIONS.INCREASE_RECURRENCE));
 
                 d = new Date(d.getTime() + 1000 * 3600 * 24 * debtRecurrence.get(recuCntg).getValue());
             }
@@ -116,15 +107,22 @@ public class Debt {
         return outf;
     }
 
-    public void increaseNow(double increase) {
-        increases.add(new Pair<>(new Date(), increase));
+    public void increaseNow(Date date, double increase) {
+        increases.add(new Pair<>(date, increase));
+
+
+        increases.sort((a, b) -> a.getKey().compareTo(b.getKey()));
     }
 
     public void setDebtPercentage(Date startingDate, double debtPercentage) {
         this.debtPercentage.add(new Pair<>(startingDate, debtPercentage));
+
+        this.debtPercentage.sort((a, b) -> a.getKey().compareTo(b.getKey()));
     }
 
     public void setRecurrence(Date date, int rec) {
         debtRecurrence.add(new Pair<>(date, rec));
+
+        debtRecurrence.sort((a, b) -> a.getKey().compareTo(b.getKey()));
     }
 }

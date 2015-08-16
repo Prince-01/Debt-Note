@@ -38,7 +38,7 @@ public class DebtTest {
     public void IncreasedDebt_IsWorthInitialValuePlusIncrease() {
         double increase = 500;
 
-        debt.increaseNow(increase);
+        debt.increaseNow(new Date(), increase);
 
         assertEquals(money + increase, debt.calculateDebt(new Date()), precision);
     }
@@ -56,7 +56,7 @@ public class DebtTest {
 
     @Test
     public void TenPercent_ResultsWithTenPercentOfDebtHighWithIncrease() {
-        debt.increaseNow(100);
+        debt.increaseNow(new Date(), 100);
         debt.setDebtPercentage(new Date(), 10);
         debt.setRecurrence(new Date(), 5);
 
@@ -64,13 +64,11 @@ public class DebtTest {
         Date nextFiveDays = new Date();
         nextFiveDays.setTime(new Date().getTime() + 1000 * 3600 * 24 * 10);
         assertEquals((money * 1.1 + 100) * 1.21, debt.calculateDebt(nextFiveDays), precision);
-
-        List<Debt.CalcInfo> out = debt.calculateInSteps(nextFiveDays);
     }
 
     @Test
     public void RemoveAddition_ResultsWithUnchangedDebt() {
-        debt.increaseNow(100);
+        debt.increaseNow(new Date(), 100);
         debt.setDebtPercentage(new Date(), 10);
         debt.setRecurrence(new Date(), 5);
 
@@ -86,5 +84,25 @@ public class DebtTest {
                 debt.removeIncrease(c);
 
         assertEquals(money * 1.1 * 1.21, debt.calculateDebt(nextFiveDays), precision);
+    }
+
+    @Test
+    public void ChangePercentage_ResultsWithChangedDebt() {
+        debt.increaseNow(new Date(), 100);
+        debt.setDebtPercentage(new Date(), 10);
+        debt.setRecurrence(new Date(), 5);
+
+        assertEquals(money * 1.1 + 100, debt.calculateDebt(new Date()), precision);
+        Date nextFiveDays = new Date();
+        nextFiveDays.setTime(new Date().getTime() + 1000 * 3600 * 24 * 10);
+        assertEquals((money * 1.1 + 100) * 1.21, debt.calculateDebt(nextFiveDays), precision);
+
+        List<Debt.CalcInfo> out = debt.calculateInSteps(nextFiveDays);
+
+        debt.changePercentage(out.get(out.size() - 1), 0);
+        out = debt.calculateInSteps(nextFiveDays);
+
+        assertEquals((money * 1.1 + 100) * 1.1, debt.calculateDebt(nextFiveDays), precision);
+
     }
 }
