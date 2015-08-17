@@ -90,19 +90,22 @@ public class DebtTest {
 
         assertEquals(money * 1.1 + 100, debt.calculateDebt(new Date()), precision);
         Date nextFiveDays = new Date();
-        nextFiveDays.setTime(new Date().getTime() + 1000 * 3600 * 24 * 10);
-        assertEquals((money * 1.1 + 100) * 1.21, debt.calculateDebt(nextFiveDays), precision);
+        nextFiveDays.setTime(new Date().getTime() + 1000 * 3600 * 24 * 20);
+        assertEquals((money * 1.1 + 100) * 1.21 * 1.21, debt.calculateDebt(nextFiveDays), precision);
 
         List<Debt.CalcInfo> out = debt.calculateInSteps(nextFiveDays);
 
-        for(Debt.CalcInfo c : out)
-        System.out.println(c.date + ", " + c.modification + ": " + c.value);
-
-        debt.changePercentage(out.get(out.size() - 1), 0);
+        debt.changePercentageOnce(out.get(out.size() - 3), 0);
         out = debt.calculateInSteps(nextFiveDays);
-        for(Debt.CalcInfo c : out)
-            System.out.println(c.date + ", " + c.modification + ": " + c.value);
-        assertEquals((money * 1.1 + 100) * 1.1, debt.calculateDebt(nextFiveDays), precision);
+        assertEquals((money * 1.1 + 100) * 1.21 * 1.1, debt.calculateDebt(nextFiveDays), precision);
 
+    }
+
+    @Test
+    public void NonRecurrentPercentageAndAddition_FirstAdditionThenPercentage() {
+        debt.increaseBy(new Date(), 100, 0);
+        debt.setDebtPercentage(new Date((new Date()).getTime() + 1), 10, 0); // milisecond later
+
+        assertEquals((money + 100) * 1.1, debt.calculateDebt(new Date()), precision);
     }
 }

@@ -3,28 +3,15 @@ package com.company;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * Created by Kamil on 2015-08-07.
  */
 public class Debt {
-    private double initialDebt;
-    private List<CalcInfo> increases = new ArrayList<>();
-    private List<CalcInfo> debtPercentage = new ArrayList<>();
-
-    public void removeIncrease(CalcInfo c) {
-
-        for (int i = 0; i < increases.size(); i++)
-            if (c.date.compareTo(increases.get(i).date) == 0) {
-                increases.remove(i);
-                break;
-            }
-
-    }
-    public void changePercentage(CalcInfo c, double newPercentage) {
-        Date dayBefore = new Date(c.date.getTime() - 1000 * 3600 * 24);
-
-        setDebtPercentage(dayBefore, newPercentage, c.recurrence);
+    public enum MODIFICATIONS {
+        INCREASE_ADDITION,
+        INCREASE_PERCENTAGE
     }
 
     public class CalcInfo {
@@ -49,84 +36,59 @@ public class Debt {
         }
     }
 
-    public enum MODIFICATIONS {
-        INCREASE_ADDITION,
-        INCREASE_PERCENTAGE,
-        INCREASE_RECURRENCE
-    };
-
-    private Date convDate(Date d) {
-        return new Date(d.getTime() - d.getTime() % (1000 * 3600 * 24));
-    }
-
-    private boolean isTheSameDay(Date d1, Date d2) {
-        return convDate(d1).getTime() / (1000 * 3600 * 24) == convDate(d2).getTime() / (1000 * 3600 * 24);
-    }
-
-    private void removeRedundancy() {
-        for(int i = 0; i < debtPercentage.size() - 1; i++)
-            if(isTheSameDay(debtPercentage.get(i).date, debtPercentage.get(i + 1).date))
-                debtPercentage.remove(i--);
-    }
+    private double initialDebt;
+    private List<CalcInfo> additionIncreases = new ArrayList<>();
+    private List<CalcInfo> percentageIncreases = new ArrayList<>();
 
     public void setInitialDebt(double initialDebt) {
         this.initialDebt = initialDebt;
     }
 
-    private List<CalcInfo> getIncreases(Date d) {
-        List<CalcInfo> res = new ArrayList<>();
+    public void increaseBy(Date date, double increase, int recurrence) {
+        this.additionIncreases.add(new CalcInfo(date, increase, recurrence, MODIFICATIONS.INCREASE_ADDITION));
 
-        for(CalcInfo c : increases)
-            if(isAppliable(c, d))
-                res.add(c);
-        return res;
+        additionIncreases.sort((a, b) -> a.date.compareTo(b.date));
     }
 
-    private int getUpperIndexOfIncreaseBefore(int from, Date to) {
-        while (from < increases.size() && to.compareTo(convDate(increases.get(from).date)) == 1)
-            from++;
-        return from;
+    public void setDebtPercentage(Date startingDate, double percentageIncreases, int recurrence) {
+        this.percentageIncreases.add(new CalcInfo(startingDate, percentageIncreases, recurrence, MODIFICATIONS.INCREASE_PERCENTAGE));
+
+        this.percentageIncreases.sort((a, b) -> a.date.compareTo(b.date));
+        removeRedundancy();
     }
 
-    private int getUpperIndexOfIncreaseAt(int from, Date to) {
-        while (from < increases.size() && to.compareTo(convDate(increases.get(from).date)) == 0)
-            from++;
-        return from;
-    }
+    public void removeIncrease(CalcInfo c) {
 
-    private boolean isAppliable(CalcInfo c, Date now) {
-        return c.recurrence == 0 && isTheSameDay(now, c.date) || (c.recurrence != 0 && convDate(now).getTime() >= convDate(c.date).getTime() && (convDate(now).getTime() - convDate(c.date).getTime()) % (1000 * 3600 * 24 * c.recurrence) == 0);
-    }
+        for (int i = 0; i < additionIncreases.size(); i++)
+            if (c.date.compareTo(additionIncreases.get(i).date) == 0) {
+                additionIncreases.remove(i);
+                break;
+            }
 
-    private Date moveDateByNDays(Date d, int n) {
-        return new Date(d.getTime() + 1000 * 3600 * 24 * n);
+    }
+    public void changePercentageOnce(CalcInfo c, double newPercentage) {
+        setDebtPercentage(c.date, newPercentage, c.recurrence);
+        setDebtPercentage(moveDateByNDays(c.date, c.recurrence), 10, c.recurrence);
     }
 
     public List<CalcInfo> calculateInSteps(Date limit) {
         List<CalcInfo> result = new ArrayList<>();
-        if(debtPercentage.size() != 0) {
-            Date d = new Date(increases.size() > 0 ? Math.min(convDate(debtPercentage.get(0).date).getTime(), convDate(increases.get(0).date).getTime()) : convDate(debtPercentage.get(0).date).getTime());
-            int percCntg = 0;
+        if(percentageIncreases.size() != 0) {
+            Date d = new Date(additionIncreases.size() > 0 ? Math.min(convDate(percentageIncreases.get(0).date).getTime(), convDate(additionIncreases.get(0).date).getTime()) : convDate(percentageIncreases.get(0).date).getTime());
             while (d.compareTo(limit) <= 0) {
-                percCntg = giveCorrectPercentageIndex(d, percCntg);
-                if(isAppliable(debtPercentage.get(percCntg), d))
-                    result.add(new CalcInfo(d, debtPercentage.get(percCntg).value, debtPercentage.get(percCntg).recurrence, MODIFICATIONS.INCREASE_PERCENTAGE));
+                result.addAll(getPercentageIncreases(d));
 
-                result.addAll(getIncreases(d));
+                result.addAll(getAdditionIncreases(d));
 
                 d = moveDateByNDays(d, 1);
             }
         } else {
-            result.addAll(increases);
+            result.addAll(additionIncreases);
         }
 
-        return result;
-    }
+        result.sort((a, b) -> a.date.compareTo(b.date));
 
-    private int giveCorrectPercentageIndex(Date d, int percCntg) {
-        while (percCntg < debtPercentage.size() - 1 && !(d.compareTo(convDate(debtPercentage.get(percCntg).date)) >= 0 && d.compareTo(convDate(debtPercentage.get(percCntg + 1).date)) < 1))
-            percCntg++;
-        return percCntg;
+        return result;
     }
 
     public double calculateDebt(Date limit) {
@@ -139,16 +101,72 @@ public class Debt {
         return outf;
     }
 
-    public void increaseBy(Date date, double increase, int recurrence) {
-        this.increases.add(new CalcInfo(date, increase, recurrence, MODIFICATIONS.INCREASE_ADDITION));
-
-        increases.sort((a, b) -> a.date.compareTo(b.date));
+    private Date convDate(Date d) {
+        return new Date(d.getTime() - d.getTime() % (1000 * 3600 * 24));
     }
 
-    public void setDebtPercentage(Date startingDate, double debtPercentage, int recurrence) {
-        this.debtPercentage.add(new CalcInfo(startingDate, debtPercentage, recurrence, MODIFICATIONS.INCREASE_PERCENTAGE));
+    private boolean isTheSameDay(Date d1, Date d2) {
+        return d1.getTime() / (1000 * 3600 * 24) == d2.getTime() / (1000 * 3600 * 24);
+    }
 
-        this.debtPercentage.sort((a, b) -> a.date.compareTo(b.date));
-        removeRedundancy();
+    private void removeRedundancy() {
+        for(int i = 0; i < percentageIncreases.size() - 1; i++)
+            if(isRecurrent(percentageIncreases.get(i)) && isRecurrent(percentageIncreases.get(i + 1)) && isTheSameDay(percentageIncreases.get(i).date, percentageIncreases.get(i + 1).date))
+                percentageIncreases.remove(i--);
+
+        for(int i = 0; i < additionIncreases.size() - 1; i++)
+            if(isRecurrent(additionIncreases.get(i)) && isRecurrent(additionIncreases.get(i + 1)) && isTheSameDay(additionIncreases.get(i).date, additionIncreases.get(i + 1).date))
+                additionIncreases.remove(i--);
+    }
+
+    private List<CalcInfo> getAdditionIncreases(Date d) {
+        return leaveOnlyLastRecurrence(getAppliableCalcInfo(d, additionIncreases));
+
+    }
+
+    private List<CalcInfo> getPercentageIncreases(Date d) {
+        return leaveOnlyLastRecurrence(getAppliableCalcInfo(d, percentageIncreases));
+    }
+
+    private List<CalcInfo> leaveOnlyLastRecurrence(List<CalcInfo> in) {
+        List<CalcInfo> ret = new ArrayList<>();
+        boolean inside = false;
+
+        for (int i = in.size() - 1; i >= 0; i--)
+            if(isRecurrent(in.get(i)) && !inside)
+            {
+                ret.add(in.get(i));
+                inside = true;
+            } else if(!isRecurrent(in.get(i)))
+                ret.add(in.get(i));
+
+        return ret;
+    }
+
+    private List<CalcInfo> getAppliableCalcInfo(Date d, List<CalcInfo> list) {
+        return list.stream().filter(c -> isAppliable(c, d)).map(c -> {
+            if (isRecurrent(c)) return new CalcInfo(d, c.value, c.recurrence, c.modification);
+            return c;
+        }).collect(Collectors.toList());
+    }
+
+    private boolean isAppliable(CalcInfo c, Date now) {
+        return doesNonRecurrentHappensNow(c, now) || isRecurrenceApplyConditionFulfilled(c, now);
+    }
+
+    private boolean doesNonRecurrentHappensNow(CalcInfo c, Date now) {
+        return !isRecurrent(c) && isTheSameDay(now, c.date);
+    }
+
+    private boolean isRecurrenceApplyConditionFulfilled(CalcInfo c, Date now) {
+        return isRecurrent(c) && convDate(now).getTime() >= convDate(c.date).getTime() && (convDate(now).getTime() - convDate(c.date).getTime()) % (1000 * 3600 * 24 * c.recurrence) == 0;
+    }
+
+    private boolean isRecurrent(CalcInfo c) {
+        return c.recurrence != 0;
+    }
+
+    private Date moveDateByNDays(Date d, int n) {
+        return new Date(d.getTime() + 1000 * 3600 * 24 * n);
     }
 }
