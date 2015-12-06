@@ -14,7 +14,7 @@ public class Debt {
         INCREASE_PERCENTAGE
     }
 
-    public class CalcInfo {
+    public class CalcInfo implements Comparable<CalcInfo> {
         public Date date;
         public double value;
         public int recurrence;
@@ -34,6 +34,11 @@ public class Debt {
                 return in * (1 + value / 100);
             return -1;
         }
+
+        @Override
+        public int compareTo(CalcInfo o) {
+            return date.compareTo(o.date);
+        }
     }
 
     private double initialDebt;
@@ -44,16 +49,18 @@ public class Debt {
         this.initialDebt = initialDebt;
     }
 
+    private void sortCollection(List<CalcInfo> collection) { collection.sort(CalcInfo::compareTo);}
+
     public void increaseBy(Date date, double increase, int recurrence) {
         this.additionIncreases.add(new CalcInfo(date, increase, recurrence, MODIFICATIONS.INCREASE_ADDITION));
 
-        additionIncreases.sort((a, b) -> a.date.compareTo(b.date));
+        sortCollection(additionIncreases);
     }
 
     public void setDebtPercentage(Date startingDate, double percentageIncreases, int recurrence) {
         this.percentageIncreases.add(new CalcInfo(startingDate, percentageIncreases, recurrence, MODIFICATIONS.INCREASE_PERCENTAGE));
 
-        this.percentageIncreases.sort((a, b) -> a.date.compareTo(b.date));
+        sortCollection(this.percentageIncreases);
         removeRedundancy();
     }
 
@@ -68,13 +75,13 @@ public class Debt {
     }
     public void changePercentageOnce(CalcInfo c, double newPercentage) {
         setDebtPercentage(c.date, newPercentage, c.recurrence);
-        setDebtPercentage(moveDateByNDays(c.date, c.recurrence), 10, c.recurrence);
+        setDebtPercentage(moveDateByNDays(c.date, c.recurrence), c.value, c.recurrence);
     }
 
     public List<CalcInfo> calculateInSteps(Date limit) {
         List<CalcInfo> result = new ArrayList<>();
         if(percentageIncreases.size() != 0) {
-            Date d = new Date(additionIncreases.size() > 0 ? Math.min(convDate(percentageIncreases.get(0).date).getTime(), convDate(additionIncreases.get(0).date).getTime()) : convDate(percentageIncreases.get(0).date).getTime());
+            Date d = new Date(additionIncreases.size() > 0 ? Math.min(getMidnight(percentageIncreases.get(0).date).getTime(), getMidnight(additionIncreases.get(0).date).getTime()) : getMidnight(percentageIncreases.get(0).date).getTime());
             while (d.compareTo(limit) <= 0) {
                 result.addAll(getPercentageIncreases(d));
 
@@ -86,7 +93,7 @@ public class Debt {
             result.addAll(additionIncreases);
         }
 
-        result.sort((a, b) -> a.date.compareTo(b.date));
+        sortCollection(result);
 
         return result;
     }
@@ -101,7 +108,7 @@ public class Debt {
         return outf;
     }
 
-    private Date convDate(Date d) {
+    private Date getMidnight(Date d) {
         return new Date(d.getTime() - d.getTime() % (1000 * 3600 * 24));
     }
 
@@ -159,7 +166,9 @@ public class Debt {
     }
 
     private boolean isRecurrenceApplyConditionFulfilled(CalcInfo c, Date now) {
-        return isRecurrent(c) && convDate(now).getTime() >= convDate(c.date).getTime() && (convDate(now).getTime() - convDate(c.date).getTime()) % (1000 * 3600 * 24 * c.recurrence) == 0;
+        return isRecurrent(c) &&
+               getMidnight(now).getTime() >= getMidnight(c.date).getTime() &&
+               (getMidnight(now).getTime() - getMidnight(c.date).getTime()) % (1000 * 3600 * 24 * c.recurrence) == 0;
     }
 
     private boolean isRecurrent(CalcInfo c) {
